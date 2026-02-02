@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AGI Conversational Assistant - Aisha</title>
+    <link rel="stylesheet" href="/styles/main.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Character Animation Section -->
+        <div class="character-section">
+            <div class="character-container">
+                <canvas id="characterCanvas"></canvas>
+                <div class="emotion-indicator" id="emotionIndicator">😊</div>
+            </div>
+            <div class="character-name">Aisha</div>
+        </div>
+
+        <!-- Chat Section -->
+        <div class="chat-section">
+            <div class="chat-header">
+                <h1>🤖 AGI Assistant</h1>
+                <div class="status">
+                    <span class="status-dot"></span>
+                    <span id="statusText">Online</span>
+                </div>
+            </div>
+
+            <div class="chat-messages" id="chatMessages">
+                <div class="message assistant-message">
+                    <div class="message-content">
+                        <p>नमस्ते! मैं Aisha हूं। मैं आपकी कैसे मदद कर सकती हूं? 😊</p>
+                        <span class="timestamp">Just now</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="chat-input-container">
+                <input 
+                    type="text" 
+                    id="messageInput" 
+                    placeholder="Type your message here..."
+                    autocomplete="off"
+                >
+                <button id="sendButton">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                        <path d="M22 2L11 13M22 2L15 22L11 13M22 2L2 9L11 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </button>
+            </div>
+
+            <div class="controls">
+                <button id="clearMemory" class="control-btn">🗑️ Clear Memory</button>
+                <button id="toggleTheme" class="control-btn">🌙 Dark Mode</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/animation.js"></script>
+    <script>
+        const chatMessages = document.getElementById('chatMessages');
+        const messageInput = document.getElementById('messageInput');
+        const sendButton = document.getElementById('sendButton');
+        const clearMemoryBtn = document.getElementById('clearMemory');
+        const toggleThemeBtn = document.getElementById('toggleTheme');
+        const emotionIndicator = document.getElementById('emotionIndicator');
+        const statusText = document.getElementById('statusText');
+
+        const userId = 'user_' + Math.random().toString(36).substr(2, 9);
+        let isDarkMode = false;
+
+        // Emotion emoji mapping
+        const emotionEmojis = {
+            happy: '😊',
+            excited: '🤩',
+            sad: '😢',
+            neutral: '😐',
+            thinking: '🤔',
+            surprised: '😮',
+            apologetic: '🙏',
+            confused: '😕',
+            empathetic: '🤗',
+            calm: '😌',
+            helpful: '💡',
+            curious: '🧐'
+        };
+
+        // Send message function
+        async function sendMessage() {
+            const message = messageInput.value.trim();
+            if (!message) return;
+
+            // Add user message to chat
+            addMessage(message, 'user');
+            messageInput.value = '';
+
+            // Show typing indicator
+            const typingId = showTyping();
+
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ message, userId })
+                });
+
+                const data = await response.json();
+
+                // Remove typing indicator
+                removeTyping(typingId);
+
+                if (data.success) {
+                    addMessage(data.response, 'assistant');
+                    updateEmotion(data.emotion);
+                    playAnimation(data.animation);
+                } else {
+                    addMessage('Sorry, I encountered an error.', 'assistant');
+                }
+            } catch (error) {
+                removeTyping(typingId);
+                addMessage('Connection error. Please try again.', 'assistant');
+                console.error('Error:', error);
+            }
+        }
+
+        // Add message to chat
+        function addMessage(text, sender) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${sender}-message`;
+            
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'message-content';
+            
+            const textP = document.createElement('p');
+            textP.textContent = text;
+            
+            const timestamp = document.createElement('span');
+            timestamp.className = 'timestamp';
+            timestamp.textContent = new Date().toLocaleTimeString();
+            
+            contentDiv.appendChild(textP);
+            contentDiv.appendChild(timestamp);
+            messageDiv.appendChild(contentDiv);
+            
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        // Show typing indicator
+        function showTyping() {
+            const typingDiv = document.createElement('div');
+            typingDiv.className = 'message assistant-message typing';
+            typingDiv.id = 'typing-' + Date.now();
+            typingDiv.innerHTML = '<div class="typing-indicator"><span></span><span></span><span></span></div>';
+            chatMessages.appendChild(typingDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+            return typingDiv.id;
+        }
+
+        // Remove typing indicator
+        function removeTyping(id) {
+            const typingDiv = document.getElementById(id);
+            if (typingDiv) typingDiv.remove();
+        }
+
+        // Update emotion display
+        function updateEmotion(emotion) {
+            const emoji = emotionEmojis[emotion] || '😊';
+            emotionIndicator.textContent = emoji;
+            emotionIndicator.style.animation = 'bounce 0.5s';
+            setTimeout(() => {
+                emotionIndicator.style.animation = '';
+            }, 500);
+        }
+
+        // Play animation
+        function playAnimation(animationType) {
+            if (window.characterAnimation) {
+                window.characterAnimation.play(animationType);
+            }
+        }
+
+        // Clear memory
+        async function clearMemory() {
+            if (confirm('Are you sure you want to clear the conversation memory?')) {
+                try {
+                    await fetch(`/api/memory/${userId}`, { method: 'DELETE' });
+                    chatMessages.innerHTML = '';
+                    addMessage('नमस्ते! मैं Aisha हूं। मैं आपकी कैसे मदद कर सकती हूं? 😊', 'assistant');
+                } catch (error) {
+                    console.error('Error clearing memory:', error);
+                }
+            }
+        }
+
+        // Toggle theme
+        function toggleTheme() {
+            isDarkMode = !isDarkMode;
+            document.body.classList.toggle('dark-mode');
+            toggleThemeBtn.textContent = isDarkMode ? '☀️ Light Mode' : '🌙 Dark Mode';
+        }
+
+        // Event listeners
+        sendButton.addEventListener('click', sendMessage);
+        messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendMessage();
+        });
+        clearMemoryBtn.addEventListener('click', clearMemory);
+        toggleThemeBtn.addEventListener('click', toggleTheme);
+
+        // Check server status
+        async function checkStatus() {
+            try {
+                const response = await fetch('/api/health');
+                const data = await response.json();
+                statusText.textContent = data.status === 'healthy' ? 'Online' : 'Offline';
+            } catch (error) {
+                statusText.textContent = 'Offline';
+            }
+        }
+
+        checkStatus();
+        setInterval(checkStatus, 30000); // Check every 30 seconds
+    </script>
+</body>
+</html>
